@@ -20,10 +20,13 @@ public class MovieInfo {
         this.rating = rating;
     }
 
-    public MovieInfo(String director, String title, int year) {
+/*    public MovieInfo(String director, String title, int year) {
         this.director = director;
         this.title = title;
         this.year = year;
+    }*/
+    public MovieInfo(){
+
     }
 
     @Override

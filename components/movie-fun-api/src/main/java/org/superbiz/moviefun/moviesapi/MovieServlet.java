@@ -36,10 +36,10 @@ public class MovieServlet extends HttpServlet {
 
     public static int PAGE_SIZE = 5;
 
-    private MoviesBean moviesBean;
+    private MoviesClient movieClient;
 
-    public MovieServlet(MoviesBean moviesBean) {
-        this.moviesBean = moviesBean;
+    public MovieServlet(MoviesClient movieClient) {
+        this.movieClient = movieClient;
     }
 
     @Override
@@ -65,7 +65,7 @@ public class MovieServlet extends HttpServlet {
 
             MovieInfo movieInfo = new MovieInfo(title, director, genre, rating, year);
 
-            moviesBean.addMovie(movieInfo);
+            movieClient.addMovie(movieInfo);
             response.sendRedirect("moviefun");
             return;
 
@@ -73,7 +73,7 @@ public class MovieServlet extends HttpServlet {
 
             String[] ids = request.getParameterValues("id");
             for (String id : ids) {
-                moviesBean.deleteMovieId(new Long(id));
+                movieClient.deleteMovieId(new Long(id));
             }
 
             response.sendRedirect("moviefun");
@@ -86,11 +86,11 @@ public class MovieServlet extends HttpServlet {
             int count = 0;
 
             if (StringUtils.isEmpty(key) || StringUtils.isEmpty(field)) {
-                count = moviesBean.countAll();
+                count = movieClient.countAll();
                 key = "";
                 field = "";
             } else {
-                count = moviesBean.count(field, key);
+                count = movieClient.count(field, key);
             }
 
             int page = 1;
@@ -114,12 +114,12 @@ public class MovieServlet extends HttpServlet {
             }
 
             int start = (page - 1) * PAGE_SIZE;
-            List<Movie> range;
+            List<MovieInfo> range;
 
             if (StringUtils.isEmpty(key) || StringUtils.isEmpty(field)) {
-                range = moviesBean.findAll(start, PAGE_SIZE);
+                range = movieClient.findAll(start, PAGE_SIZE);
             } else {
-                range = moviesBean.findRange(field, key, start, PAGE_SIZE);
+                range = movieClient.findRange(field, key, start, PAGE_SIZE);
             }
 
             int end = start + range.size();

@@ -1,105 +1,65 @@
 package org.superbiz.moviefun.moviesapi;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.transaction.annotation.Transactional;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.persistence.TypedQuery;
-import javax.persistence.criteria.*;
-import javax.persistence.metamodel.EntityType;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.web.client.RestOperations;
+import org.springframework.web.util.UriComponentsBuilder;
+
 import java.util.List;
 
+import static org.springframework.http.HttpMethod.GET;
+
 public class MoviesClient {
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    private String moviesUrl;
+    private RestOperations restOperations;
+    private static ParameterizedTypeReference<List<MovieInfo>> movieListType = new ParameterizedTypeReference<List<MovieInfo>>() {
+    };
 
-    public MovieInfo find(Long id) {
-
-        return entityManager.find(MovieInfo.class, id);
+    public MoviesClient(String moviesUrl, RestOperations restOperations) {
+        this.moviesUrl = moviesUrl;
+        this.restOperations = restOperations;
     }
 
-    @Transactional
+
     public void addMovie(MovieInfo movieInfo) {
-        logger.debug("Creating movie with title {}, and year {}", movieInfo.getTitle(), movieInfo.getYear());
-
-        entityManager.persist(movieInfo);
+        restOperations.postForEntity(moviesUrl, movieInfo, MovieInfo.class);
     }
 
-    @Transactional
-    public void updateMovie(MovieInfo movieInfo) {
-        entityManager.merge(movieInfo);
-    }
-
-    @Transactional
-    public void deleteMovie(MovieInfo movieInfo) {
-        entityManager.remove(movieInfo);
-    }
-
-    @Transactional
     public void deleteMovieId(long id) {
-        MovieInfo movieInfo = entityManager.find(MovieInfo.class, id);
-        deleteMovie(movieInfo);
+        restOperations.delete(moviesUrl + "/" + id);
     }
 
     public List<MovieInfo> getMovies() {
-        CriteriaQuery<MovieInfo> cq = entityManager.getCriteriaBuilder().createQuery(MovieInfo.class);
-        cq.select(cq.from(MovieInfo.class));
-        return entityManager.createQuery(cq).getResultList();
+        return restOperations.exchange(moviesUrl, GET, null, movieListType).getBody();
     }
 
     public List<MovieInfo> findAll(int firstResult, int maxResults) {
-        CriteriaQuery<MovieInfo> cq = entityManager.getCriteriaBuilder().createQuery(MovieInfo.class);
-        cq.select(cq.from(MovieInfo.class));
-        TypedQuery<MovieInfo> q = entityManager.createQuery(cq);
-        q.setMaxResults(maxResults);
-        q.setFirstResult(firstResult);
-        return q.getResultList();
-    }
-
-    public int countAll() {
-        CriteriaQuery<Long> cq = entityManager.getCriteriaBuilder().createQuery(Long.class);
-        Root<MovieInfo> rt = cq.from(MovieInfo.class);
-        cq.select(entityManager.getCriteriaBuilder().count(rt));
-        TypedQuery<Long> q = entityManager.createQuery(cq);
-        return (q.getSingleResult()).intValue();
-    }
-
-    public int count(String field, String searchTerm) {
-        CriteriaBuilder qb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Long> cq = qb.createQuery(Long.class);
-        Root<MovieInfo> root = cq.from(MovieInfo.class);
-        EntityType<MovieInfo> type = entityManager.getMetamodel().entity(MovieInfo.class);
-
-        Path<String> path = root.get(type.getDeclaredSingularAttribute(field, String.class));
-        Predicate condition = qb.like(path, "%" + searchTerm + "%");
-
-        cq.select(qb.count(root));
-        cq.where(condition);
-
-        return entityManager.createQuery(cq).getSingleResult().intValue();
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(moviesUrl)
+                .queryParam("start", firstResult)
+                .queryParam("maxResults", maxResults);
+        return restOperations.exchange(builder.toUriString(), GET, null, movieListType).getBody();
     }
 
     public List<MovieInfo> findRange(String field, String searchTerm, int firstResult, int maxResults) {
-        CriteriaBuilder qb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<MovieInfo> cq = qb.createQuery(MovieInfo.class);
-        Root<MovieInfo> root = cq.from(MovieInfo.class);
-        EntityType<MovieInfo> type = entityManager.getMetamodel().entity(MovieInfo.class);
-
-        Path<String> path = root.get(type.getDeclaredSingularAttribute(field, String.class));
-        Predicate condition = qb.like(path, "%" + searchTerm + "%");
-
-        cq.where(condition);
-        TypedQuery<MovieInfo> q = entityManager.createQuery(cq);
-        q.setMaxResults(maxResults);
-        q.setFirstResult(firstResult);
-        return q.getResultList();
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(moviesUrl)
+                .queryParam("field", field)
+                .queryParam("searchTerm", searchTerm)
+                .queryParam("start", firstResult)
+                .queryParam("maxResults", maxResults);
+        return restOperations.exchange(builder.toUriString(), GET, null, movieListType).getBody();
     }
 
-    public void clean() {
-        entityManager.createQuery("delete from Movie").executeUpdate();
+    public int countAll() {
+        return restOperations.getForObject(moviesUrl + "/count", Integer.class);
+    }
+
+    public int count(String field, String searchTerm) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(moviesUrl + "/count")
+                .queryParam("field", field)
+                .queryParam("searchTerm", searchTerm);
+        return restOperations.getForObject(builder.toUriString(), Integer.class);
     }
 }
+
+
